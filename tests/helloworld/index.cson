@@ -1,0 +1,27 @@
+{
+  express:
+    port: 5564
+  name: "site"
+  "static": './public'
+  layouts:
+    "main": './layouts/main'
+  modules: ["cookieParser"]
+  api:
+    get:
+      "/api/get": ["get-testmodule"]
+    post:
+      '/api/post': ["post-testmodule"]
+
+  apps:
+    "index":
+      path: "/"
+      layout: "main"
+      modules: []
+      baseRoute: "home"
+      routes:
+        'home':
+          components: ["./components/home"]
+        'test':
+          path: 'test'
+          components: ["./components/test"]
+}
