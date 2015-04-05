@@ -1,5 +1,5 @@
 (function() {
-  var Promise, React, bros, cluster, cpuCount, debug, express, expressApp, i, logger, path, pathToConfigFile, routerFactory, site, sitePath, _i;
+  var Promise, React, bros, debug, express, logger, path, routerFactory;
 
   express = require("express");
 
@@ -11,157 +11,137 @@
 
   Promise = require("bluebird");
 
-  cluster = require("cluster");
-
-  debug.enable("*");
-
   require('coffee-react/register');
 
   require('./util/cson-register');
-
-  if (cluster.isMaster) {
-    cpuCount = 1;
-    for (i = _i = 0; 0 <= cpuCount ? _i < cpuCount : _i > cpuCount; i = 0 <= cpuCount ? ++_i : --_i) {
-      cluster.fork();
-    }
-    return;
-  }
 
   routerFactory = require("./router/server");
 
   bros = require("./bros");
 
-  logger = require("./util/logger")("nodes:");
+  logger = require("./util/logger")("reacta:");
 
-  pathToConfigFile = "./";
-
-  if (process.argv[2] != null) {
-    pathToConfigFile = process.argv[2];
-  }
-
-  sitePath = path.resolve(process.cwd(), pathToConfigFile);
-
-  logger.info("Site found at '" + sitePath + "'");
-
-  site = require(sitePath);
-
-  site.cwd = sitePath;
-
-  logger.info("site file loaded", site);
-
-  if (!site.express) {
-    site.express = {};
-  }
-
-  expressApp = express();
-
-  require(path.resolve(sitePath, "express"))(expressApp).then(function(modules) {
-    var am, apiModNames, apiMods, apiModules, apiName, apiObject, apiPath, app, appName, key, r, renderer, startup, value, _j, _k, _len, _len1, _ref, _ref1, _ref2, _ref3, _ref4;
-    site.express.modules = modules;
-    logger.info("express modules loaded", site.express.modules);
-    if (site.api != null) {
-      _ref = site.api;
-      for (apiName in _ref) {
-        apiObject = _ref[apiName];
-        for (apiPath in apiObject) {
-          apiModules = apiObject[apiPath];
-          apiModNames = [];
-          if (site.modules != null) {
-            apiModNames = apiModNames.concat(site.modules);
-          }
-          apiModNames = apiModNames.concat(apiModules);
-          logger.log("API MODULES", apiModNames, site.modules);
-          apiMods = [apiPath];
-          for (_j = 0, _len = apiModNames.length; _j < _len; _j++) {
-            am = apiModNames[_j];
-            if (site.express.modules[am] != null) {
-              apiMods.push(site.express.modules[am]());
-            }
-          }
-          logger.log("creating api route " + apiName + " - " + apiPath, apiMods);
-          expressApp[apiName].apply(expressApp, apiMods);
-        }
-      }
+  module.exports = function(site) {
+    var expressApp;
+    site.cwd = process.cwd();
+    logger.info("site file loaded", site);
+    if (!site.express) {
+      site.express = {};
     }
-    site.components = {};
-    _ref1 = site.layouts;
-    for (key in _ref1) {
-      value = _ref1[key];
-      if (!site.components[value]) {
-        site.components[value] = require(path.join(site.cwd, value));
-      }
-    }
-    _ref2 = site.apps;
-    for (appName in _ref2) {
-      app = _ref2[appName];
-      _ref3 = app.routes;
-      for (key in _ref3) {
-        value = _ref3[key];
-        _ref4 = value.components;
-        for (_k = 0, _len1 = _ref4.length; _k < _len1; _k++) {
-          r = _ref4[_k];
-          if (!site.components[r]) {
-            site.components[r] = require(path.join(site.cwd, r));
-          }
-        }
-      }
-    }
-    logger.log("site components", site.components);
-    renderer = routerFactory(site);
-    startup = function() {
-      return new Promise(function(resolve, reject) {
-        var p, promises, staticPath, _ref5;
-        if (site["static"] != null) {
-          staticPath = path.resolve(sitePath, site["static"]);
-          logger.info("creating static handler at '" + staticPath);
-          expressApp.use(express["static"](staticPath));
-        }
-        promises = [];
-        _ref5 = site.apps;
-        for (appName in _ref5) {
-          app = _ref5[appName];
-          p = bros(site, appName, app).then(function(tmpDir) {
-            var appModules, expressArgs, m, routeFunc, routes, _l, _len2, _len3, _m, _ref6, _results;
-            logger.log("creating path to '" + tmpDir);
-            expressApp.use(express["static"](tmpDir));
-            modules = [];
+    expressApp = express();
+    return require(path.resolve(site.cwd, "services"))(expressApp).then(function(modules) {
+      var am, apiModNames, apiMods, apiModules, apiName, apiObject, apiPath, app, appName, i, j, key, len, len1, r, ref, ref1, ref2, ref3, renderer, startup, value;
+      site.express.modules = modules;
+      logger.info("express modules loaded", site.express.modules);
+      if (site.api != null) {
+        ref = site.api;
+        for (apiName in ref) {
+          apiObject = ref[apiName];
+          for (apiPath in apiObject) {
+            apiModules = apiObject[apiPath];
+            apiModNames = [];
             if (site.modules != null) {
-              modules = modules.concat(site.modules);
+              apiModNames = apiModNames.concat(site.modules);
             }
-            if (app.modules != null) {
-              modules = modules.concat(app.modules);
-            }
-            appModules = [];
-            logger.debug("modules for route " + appName, modules);
-            for (_l = 0, _len2 = modules.length; _l < _len2; _l++) {
-              m = modules[_l];
-              if (site.express.modules[m] != null) {
-                appModules.push(site.express.modules[m]());
+            apiModNames = apiModNames.concat(apiModules);
+            logger.log("api modules found", apiModNames, site.modules);
+            apiMods = [apiPath];
+            for (i = 0, len = apiModNames.length; i < len; i++) {
+              am = apiModNames[i];
+              if (site.express.modules[am] != null) {
+                apiMods.push(site.express.modules[am]());
               }
             }
-            _ref6 = renderer.createApplication(appName, app), routes = _ref6.routes, routeFunc = _ref6.routeFunc;
-            _results = [];
-            for (_m = 0, _len3 = routes.length; _m < _len3; _m++) {
-              r = routes[_m];
-              expressArgs = [r];
-              expressArgs = expressArgs.concat(appModules);
-              expressArgs.push(routeFunc);
-              logger.debug("args for app " + appName, expressArgs);
-              _results.push(expressApp.get.apply(expressApp, expressArgs));
-            }
-            return _results;
-          });
-          promises.push(p);
+            logger.log("creating api route " + apiName + " - " + apiPath, apiMods);
+            expressApp[apiName].apply(expressApp, apiMods);
+          }
         }
-        return Promise.all(promises).then(resolve, reject);
+      }
+      site.components = {};
+      ref1 = site.apps;
+      for (appName in ref1) {
+        app = ref1[appName];
+        ref2 = app.routes;
+        for (key in ref2) {
+          value = ref2[key];
+          ref3 = value.components;
+          for (j = 0, len1 = ref3.length; j < len1; j++) {
+            r = ref3[j];
+            if (!site.components[r]) {
+              site.components[r] = require(path.join(site.cwd, r));
+            }
+          }
+        }
+      }
+      logger.log("creating renderer from route factory");
+      renderer = routerFactory(site);
+      startup = function() {
+        return new Promise(function(resolve, reject) {
+          var p, promises, ref4, staticPath;
+          if (site["static"] != null) {
+            staticPath = path.resolve(site.cwd, site["static"]);
+            logger.info("creating static handler at '" + staticPath);
+            expressApp.use(express["static"](staticPath));
+          }
+          promises = [];
+          ref4 = site.apps;
+          for (appName in ref4) {
+            app = ref4[appName];
+            p = bros(site, appName, app).then(function(tmpDir) {
+              var appModules, k, len2, m;
+              logger.log("creating path to '" + tmpDir);
+              expressApp.use(express["static"](tmpDir));
+              modules = [];
+              if (site.modules != null) {
+                modules = modules.concat(site.modules);
+              }
+              if (app.modules != null) {
+                modules = modules.concat(app.modules);
+              }
+              appModules = [];
+              logger.debug("modules for route " + appName, modules);
+              for (k = 0, len2 = modules.length; k < len2; k++) {
+                m = modules[k];
+                if (site.express.modules[m] != null) {
+                  appModules.push(site.express.modules[m]());
+                }
+              }
+              return renderer.createApplication(appName, app).then(function(newApp) {
+                var expressArgs, l, len3, len4, mm, n, ref5, ref6, results, routeFunc, routes;
+                routes = newApp.routes, routeFunc = newApp.routeFunc;
+                results = [];
+                for (l = 0, len3 = routes.length; l < len3; l++) {
+                  r = routes[l];
+                  expressArgs = ["/" + r];
+                  if (((ref5 = app.routes[r]) != null ? ref5.modules : void 0) != null) {
+                    ref6 = app.routes[r].modules;
+                    for (n = 0, len4 = ref6.length; n < len4; n++) {
+                      mm = ref6[n];
+                      logger.log("adding module to reacta route " + r + " " + mm);
+                      expressArgs.push(site.express.modules[mm]());
+                    }
+                  }
+                  expressArgs = expressArgs.concat(appModules);
+                  expressArgs.push(routeFunc);
+                  logger.debug("args for app " + appName, expressArgs, r);
+                  results.push(expressApp.get.apply(expressApp, expressArgs));
+                }
+                return results;
+              });
+            });
+            promises.push(p);
+          }
+          return Promise.all(promises).then(resolve, reject);
+        });
+      };
+      return startup().then(function() {
+        expressApp.use(function(req, res, next) {
+          return res.status(404).send("404");
+        });
+        expressApp.listen(site.express.port);
+        return logger.log("now listening on " + site.express.port);
       });
-    };
-    return startup().then(function() {
-      expressApp.use(function(req, res, next) {
-        return res.status(404).send("404");
-      });
-      return expressApp.listen(site.express.port);
     });
-  });
+  };
 
 }).call(this);

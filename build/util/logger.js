@@ -11,10 +11,10 @@
       suffix = ":";
     }
     return {
-      log: debug("" + prefix + "log" + suffix),
-      debug: debug("" + prefix + "debug" + suffix),
-      info: debug("" + prefix + "info" + suffix),
-      error: debug("" + prefix + "error" + suffix)
+      log: debug(prefix + "log" + suffix),
+      debug: debug(prefix + "debug" + suffix),
+      info: debug(prefix + "info" + suffix),
+      error: debug(prefix + "error" + suffix)
     };
   };
 

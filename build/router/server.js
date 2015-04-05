@@ -1,5 +1,5 @@
 (function() {
-  var Promise, React, Router, client, logger, path;
+  var Promise, React, Router, client, ect, fs, logger, path;
 
   path = require("path");
 
@@ -9,75 +9,89 @@
 
   Router = require("react-router");
 
-  logger = require("../util/logger")("nodes:router:server:");
+  ect = require("ect");
+
+  logger = require("../util/logger")("reacta:router:server:");
 
   Promise = require("bluebird");
 
+  fs = require("fs");
+
   module.exports = function(site) {
-    var clientSite, createExpressRoute, createLayout, getLayout;
+    var clientSite, createExpressRoute, createRenderer, loadLayout;
     clientSite = client(site);
-    getLayout = function(name) {
+    loadLayout = function(appName, app) {
       return new Promise(function(resolve, reject) {
-        return resolve(site.components[site.layouts[name]]);
+        var fullLayoutPath, layoutPath;
+        layoutPath = site.layouts[app.layout];
+        logger.log("loadLayout " + layoutPath);
+        fullLayoutPath = path.join(site.cwd, layoutPath);
+        logger.log("loadLayout " + layoutPath + " - " + fullLayoutPath);
+        return fs.readFile(fullLayoutPath + ".ect", 'utf8', function(err, data) {
+          if (err != null) {
+            return reject(err);
+          }
+          return resolve(data);
+        });
       });
     };
-    createLayout = function(appName, app) {
+    createRenderer = function(appName, app) {
       return new Promise(function(resolve, reject) {
-        return getLayout(app.layout).then(function(layout) {
-          return resolve(React.createClass({
-            render: function() {
-              return React.createElement(layout, {}, [
-                React.createElement("div", {
-                  id: "react-component"
-                }, "REPLACEME"), React.createElement("script", {
-                  src: "/" + appName + "-bundle.js",
-                  key: 'bundleScript'
-                }), React.createElement("script", {
-                  src: "/" + appName + "-start.js",
-                  key: 'startScript'
-                })
-              ]);
+        return loadLayout(appName, app).then(function(layoutMarkup) {
+          var markup;
+          markup = "<% extend \"layout\" %>";
+          markup += "<div id='react-component'><%- @reactContent %></div>\r\n";
+          markup += "<script src='/" + appName + "-bundle.js'></script>\r\n";
+          markup += "<script src='/" + appName + "-start.js'></script>\r\n";
+          return resolve(ect({
+            root: {
+              layout: layoutMarkup,
+              page: markup
             }
           }));
         });
       });
     };
-    createExpressRoute = function(appName, app) {
+    createExpressRoute = function(appName, app, renderer) {
       return function(req, res, next) {
-        return createLayout(appName, app).then(function(element) {
-          var layoutMarkup;
-          layoutMarkup = React.renderToStaticMarkup(React.createElement(element));
-          return clientSite(appName, app).then(function(element) {
-            logger.log("url2", req.baseUrl);
-            return Router.run(element, req.baseUrl, function(Handler) {
-              var inner_markup, markup;
-              logger.log("renderToString", req.url);
-              inner_markup = React.renderToString(React.createElement(Handler));
-              markup = layoutMarkup.replace("REPLACEME", inner_markup);
-              res.send(markup);
+        return clientSite(appName, app).then(function(element) {
+          logger.log("url2", req.url);
+          return Router.run(element, req.url, function(Handler) {
+            var inner_markup, markup;
+            logger.log("renderToString", req.url);
+            inner_markup = React.renderToString(React.createElement(Handler));
+            markup = renderer.render("page", {
+              reactContent: inner_markup,
+              header: "",
+              scripts: ""
             });
+            res.send(markup);
           });
         });
       };
     };
     return {
       createApplication: function(appName, app) {
-        var gapp, routeName, routeObject, routePath, _ref;
-        gapp = {
-          routeFunc: createExpressRoute(appName, app),
-          routes: []
-        };
-        _ref = app.routes;
-        for (routeName in _ref) {
-          routeObject = _ref[routeName];
-          routePath = "" + app.path;
-          if (routeObject.path != null) {
-            routePath += routeObject.path;
-          }
-          logger.info("creating route '" + routePath + "'");
-          gapp.routes.push(routePath);
-        }
-        return gapp;
+        return new Promise(function(resolve, reject) {
+          return createRenderer(appName, app).then(function(renderer) {
+            var gapp, ref, routeName, routeObject, routePath;
+            gapp = {
+              routeFunc: createExpressRoute(appName, app, renderer),
+              routes: []
+            };
+            ref = app.routes;
+            for (routeName in ref) {
+              routeObject = ref[routeName];
+              routePath = "" + app.path;
+              if (routeObject.path != null) {
+                routePath = routeObject.path;
+              }
+              logger.info("creating route '" + routePath + "'");
+              gapp.routes.push(routePath);
+            }
+            return resolve(gapp);
+          });
+        });
       }
     };
   };

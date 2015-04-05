@@ -1,7 +1,7 @@
 (function() {
   var DefaultRoute, Promise, React, Route, RouteHandler, Router, div, logger, path;
 
-  logger = require("../util/logger")("nodes:router:client:");
+  logger = require("../util/logger")("reacta:router:client:");
 
   path = require("path");
 
@@ -47,13 +47,14 @@
               }
             });
           } else {
-            logger.log("returning a route", components, isDefaultRoute, routeName, routeObject);
+            logger.log("returning a route", isDefaultRoute, routeName, routeObject);
             return resolve({
               type: Route,
               props: {
                 key: routeName,
                 name: routeName,
                 path: routeObject.path,
+                ignoreScrollBehavior: routeObject.ignoreScrollBehavior,
                 handler: handler
               }
             });
@@ -63,30 +64,31 @@
     };
     createRouteHandler = function(app, routeName, routeObject) {
       return new Promise(function(resolve, reject) {
-        var componentPath, components, _i, _len, _ref;
-        logger.debug("init create route handler " + routeName, site.components);
+        var componentPath, components, i, isRoute, len, ref;
+        logger.debug("init create route handler " + routeName, routeObject);
         components = [];
-        _ref = routeObject.components;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          componentPath = _ref[_i];
+        ref = routeObject.components;
+        for (i = 0, len = ref.length; i < len; i++) {
+          componentPath = ref[i];
           logger.debug("loading component at " + componentPath);
           components.push(site.components[componentPath]);
         }
-        return createReactRoute(components, app.baseRoute === routeName, routeName, routeObject).then(resolve, reject);
+        isRoute = app.baseRoute === routeName;
+        return createReactRoute(components, isRoute, routeName, routeObject).then(resolve, reject);
       });
     };
     return function(appName, app) {
       return new Promise(function(resolve, reject) {
-        var mainApp, promises, routeName, routeObject, _ref;
+        var mainApp, promises, ref, routeName, routeObject;
         mainApp = React.createClass({
           render: function() {
             return React.createElement(RouteHandler);
           }
         });
         promises = [];
-        _ref = app.routes;
-        for (routeName in _ref) {
-          routeObject = _ref[routeName];
+        ref = app.routes;
+        for (routeName in ref) {
+          routeObject = ref[routeName];
           promises.push(createRouteHandler(app, routeName, routeObject));
         }
         return Promise.all(promises).then(function(results) {

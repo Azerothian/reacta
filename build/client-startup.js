@@ -1,9 +1,9 @@
 (function() {
   var React, Router, debug, path, routerFactory, site;
 
-  site = require("nodes/config");
+  site = require("reacta/config");
 
-  routerFactory = require("nodes/client/router");
+  routerFactory = require("reacta/client/router");
 
   React = require("react");
 
@@ -16,21 +16,14 @@
   debug.enable("*");
 
   module.exports = function() {
-    var key, r, router, value, _i, _len, _ref, _ref1, _ref2;
+    var i, key, len, r, ref, ref1, router, value;
     site.components = {};
-    _ref = site.layouts;
-    for (key in _ref) {
-      value = _ref[key];
-      if (!site.components[value]) {
-        site.components[value] = require("/" + (path.join(site.cwd, value)));
-      }
-    }
-    _ref1 = site.app.routes;
-    for (key in _ref1) {
-      value = _ref1[key];
-      _ref2 = value.components;
-      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-        r = _ref2[_i];
+    ref = site.app.routes;
+    for (key in ref) {
+      value = ref[key];
+      ref1 = value.components;
+      for (i = 0, len = ref1.length; i < len; i++) {
+        r = ref1[i];
         if (!site.components[r]) {
           site.components[r] = require("/" + (path.join(site.cwd, r)));
         }

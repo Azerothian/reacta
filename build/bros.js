@@ -11,7 +11,7 @@
 
   Promise = require("bluebird");
 
-  logger = require("./util/logger")("nodes:bros:");
+  logger = require("./util/logger")("reacta:browserify:");
 
   path = require("path");
 
@@ -28,44 +28,53 @@
 
   module.exports = function(site, appName, appObject) {
     return new Promise(function(resolve, reject) {
-      var b, clientRouterPath, clientSite, clientStartUpPath, component, expose, i, items, key, opts, routeName, routeObject, strClientSite, value, _i, _j, _len, _len1, _ref, _ref1;
+      var b, clientRouterPath, clientSite, clientStartUpPath, component, expose, globalShim, i, items, j, k, key, len, len1, opts, ref, ref1, routeName, routeObject, strClientSite, uglifyify, value;
       items = [];
-      items = pushArray(items, site.layouts[appObject.layout]);
-      _ref = appObject.routes;
-      for (routeName in _ref) {
-        routeObject = _ref[routeName];
-        _ref1 = routeObject.components;
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          component = _ref1[_i];
+      ref = appObject.routes;
+      for (routeName in ref) {
+        routeObject = ref[routeName];
+        ref1 = routeObject.components;
+        for (j = 0, len = ref1.length; j < len; j++) {
+          component = ref1[j];
           pushArray(items, component);
         }
       }
       opts = {
         basedir: site.cwd,
-        extensions: [".js", ".coffee", ".json", ".cjsx", ".cson"]
+        extensions: site.browserify.extensions
       };
       b = browserify(opts);
+      globalShim = bgshim.configure(site.browserify.globalshim);
       b.transform(coffeeReact, {
         global: true
       });
-      for (_j = 0, _len1 = items.length; _j < _len1; _j++) {
-        i = items[_j];
+      b.transform(globalShim, {
+        global: true
+      });
+      if (site.minify) {
+        uglifyify = require("uglifyify");
+        b.transform(uglifyify, {
+          global: true
+        });
+      }
+      for (k = 0, len1 = items.length; k < len1; k++) {
+        i = items[k];
         expose = path.join("/" + appName + "/", i).replace(/\\/g, "/");
         logger.log("require " + i + " - expose- " + expose);
         b.require("" + i, {
           expose: expose
         });
       }
-      clientStartUpPath = "" + __dirname + "/client-startup";
+      clientStartUpPath = __dirname + "/client-startup";
       b.require(clientStartUpPath, {
-        expose: "nodes/client-startup"
+        expose: "reacta/client-startup"
       });
-      clientRouterPath = "" + __dirname + "/router/client";
+      clientRouterPath = __dirname + "/router/client";
       b.require(clientRouterPath, {
-        expose: "nodes/client/router"
+        expose: "reacta/client/router"
       });
       clientSite = {
-        cwd: "" + appName + "/",
+        cwd: appName + "/",
         "static": site["static"],
         layouts: site.layouts,
         app: {}
@@ -82,12 +91,12 @@
       return temp.mkdir(appName, function(err, dirPath) {
         var configFile, publicPath;
         publicPath = path.join(dirPath, "./public");
-        configFile = path.join(dirPath, "" + appName + "-config.js");
+        configFile = path.join(dirPath, appName + "-config.js");
         return fs.mkdir(publicPath, function() {
           var startFile, target;
-          target = path.join(publicPath, "" + appName + "-bundle.js");
-          startFile = path.join(publicPath, "" + appName + "-start.js");
-          return fs.writeFile(startFile, "require('nodes/client-startup')();", function(err) {
+          target = path.join(publicPath, appName + "-bundle.js");
+          startFile = path.join(publicPath, appName + "-start.js");
+          return fs.writeFile(startFile, "require('reacta/client-startup')();", function(err) {
             return fs.writeFile(configFile, strClientSite, function(err) {
               var stream, write;
               if (err) {
@@ -95,7 +104,7 @@
               }
               logger.log("file!!", configFile);
               b.require(configFile, {
-                expose: "nodes/config"
+                expose: "reacta/config"
               });
               stream = b.bundle();
               write = fs.createWriteStream(target);
