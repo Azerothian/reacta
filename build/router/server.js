@@ -59,7 +59,11 @@
           return Router.run(element, req.url, function(Handler) {
             var inner_markup, markup;
             logger.log("renderToString", req.url);
-            inner_markup = React.renderToString(React.createElement(Handler));
+            if (app.disableServerRenderer) {
+              inner_markup = "";
+            } else {
+              inner_markup = React.renderToString(React.createElement(Handler));
+            }
             markup = renderer.render("page", {
               reactContent: inner_markup,
               header: "",

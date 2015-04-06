@@ -3,9 +3,6 @@
   "version": "0.0.2",
   "description": "",
   "main": "build/index",
-  "bin": {
-    "reacta": "./bin/reacta"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
