@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Azerothian/reacta.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Azerothian",
+  "license": "MIT",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/Azerothian/reacta/issues"
   },
-  "homepage": "",
+  "homepage": "https://github.com/Azerothian/reacta",
   "dependencies": {
     "bluebird": "^2.9.4",
     "body-parser": "^1.11.0",
