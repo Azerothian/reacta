@@ -1,11 +1,9 @@
 (function() {
-  var Promise, bgshim, browserify, coffeeReact, fs, logger, path, pushArray, temp;
+  var Promise, bgshim, browserify, coffeeReact, fs, logger, path, pushArray;
 
   browserify = require("browserify");
 
   coffeeReact = require("coffee-reactify");
-
-  temp = require("temp");
 
   fs = require("fs");
 
@@ -17,8 +15,6 @@
 
   bgshim = require('browserify-global-shim');
 
-  temp.track();
-
   pushArray = function(arr, item) {
     if (arr.indexOf(item) === -1) {
       arr.push(item);
@@ -26,9 +22,9 @@
     return arr;
   };
 
-  module.exports = function(site, appName, appObject) {
+  module.exports = function(site, appName, appObject, dirPath) {
     return new Promise(function(resolve, reject) {
-      var b, clientRouterPath, clientSite, clientStartUpPath, component, expose, globalShim, i, items, j, k, key, len, len1, opts, ref, ref1, routeName, routeObject, strClientSite, uglifyify, value;
+      var b, clientRouterPath, clientSite, clientStartUpPath, component, configFile, expose, globalShim, i, items, j, k, key, len, len1, opts, publicPath, ref, ref1, routeName, routeObject, strClientSite, uglifyify, value;
       items = [];
       ref = appObject.routes;
       for (routeName in ref) {
@@ -88,32 +84,29 @@
       clientSite.app.name = appName;
       strClientSite = "module.exports = " + (JSON.stringify(clientSite)) + ";";
       logger.log("site", strClientSite);
-      return temp.mkdir(appName, function(err, dirPath) {
-        var configFile, publicPath;
-        publicPath = path.join(dirPath, "./public");
-        configFile = path.join(dirPath, appName + "-config.js");
-        return fs.mkdir(publicPath, function() {
-          var startFile, target;
-          target = path.join(publicPath, appName + "-bundle.js");
-          startFile = path.join(publicPath, appName + "-start.js");
-          return fs.writeFile(startFile, "require('reacta/client-startup')();", function(err) {
-            return fs.writeFile(configFile, strClientSite, function(err) {
-              var stream, write;
-              if (err) {
-                throw err;
-              }
-              logger.log("file!!", configFile);
-              b.require(configFile, {
-                expose: "reacta/config"
-              });
-              stream = b.bundle();
-              write = fs.createWriteStream(target);
-              write.on("close", function() {
-                logger.log("fin", target, publicPath);
-                return resolve(publicPath);
-              });
-              return stream.pipe(write);
+      publicPath = path.join(dirPath, "./public");
+      configFile = path.join(dirPath, appName + "-config.js");
+      return fs.mkdir(publicPath, function() {
+        var startFile, target;
+        target = path.join(publicPath, appName + "-bundle.js");
+        startFile = path.join(publicPath, appName + "-start.js");
+        return fs.writeFile(startFile, "require('reacta/client-startup')();", function(err) {
+          return fs.writeFile(configFile, strClientSite, function(err) {
+            var stream, write;
+            if (err) {
+              throw err;
+            }
+            logger.log("file!!", configFile);
+            b.require(configFile, {
+              expose: "reacta/config"
             });
+            stream = b.bundle();
+            write = fs.createWriteStream(target);
+            write.on("close", function() {
+              logger.log("fin", target, publicPath);
+              return resolve(publicPath);
+            });
+            return stream.pipe(write);
           });
         });
       });
