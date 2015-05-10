@@ -31,7 +31,7 @@
       o.expressApp.use(function(req, res, next) {
         return res.status(404).send("404");
       });
-      o.expressApp.listen(o.site.express.port);
+      o.http.listen(o.site.express.port);
       logger.log("now listening on " + o.site.express.port);
       return resolve();
     });
@@ -178,8 +178,9 @@
       } else {
         p = o.site.api;
       }
-      return p(o.expressApp, o.site).then(function(services) {
+      return p(o).then(function(services) {
         var am, apiModNames, apiMods, apiModules, apiName, apiObject, apiPath, i, len, ref;
+        logger.log("services", services);
         o.site.express.modules = services.modules;
         if (services.routes != null) {
           ref = services.routes;
@@ -192,7 +193,6 @@
                 apiModNames = apiModNames.concat(services.global);
               }
               apiModNames = apiModNames.concat(apiModules);
-              logger.log("api modules found", apiModNames, services.global);
               apiMods = [apiPath];
               for (i = 0, len = apiModNames.length; i < len; i++) {
                 am = apiModNames[i];
@@ -200,7 +200,7 @@
                   apiMods.push(o.site.express.modules[am]);
                 }
               }
-              logger.log("creating api route " + apiName + " - " + apiPath, apiMods);
+              logger.log("creating api route " + apiName + " - " + apiPath, apiMods.length);
               o.expressApp[apiName].apply(o.expressApp, apiMods);
             }
           }
@@ -211,16 +211,18 @@
   };
 
   module.exports = function(site) {
-    var expressApp;
+    var expressApp, http;
     site.cwd = process.cwd();
     logger.info("site file loaded", site);
     if (!site.express) {
       site.express = {};
     }
     expressApp = express();
+    http = require('http').Server(expressApp);
     return processServices({
       site: site,
-      expressApp: expressApp
+      expressApp: expressApp,
+      http: http
     }).then(processAppRoutes).then(createRenderer).then(setupStatic).then(generateApps).then(listen).then(function() {
       return logger.log("finished");
     });

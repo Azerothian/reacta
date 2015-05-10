@@ -14,25 +14,13 @@ temp.track()
 routerFactory = require "./router/server"
 bros = require "./bros"
 logger = require("./util/logger")("reacta:");
-#link = require "promise-link"
-
-#bros = link("./bros", undefined, __dirname)
-
-# pathToConfigFile = "./"
-#
-# pathToConfigFile = process.argv[2] if process.argv[2]?
-#
-# sitePath = path.resolve process.cwd(), pathToConfigFile #, "index.cson"
-# logger.info "Site found at '#{sitePath}'"
-#
-# site = require(sitePath)
 
 listen = (o) ->
   logger.log "listen"
   return new Promise (resolve, reject) ->
     o.expressApp.use (req, res, next) ->
       res.status(404).send("404")
-    o.expressApp.listen o.site.express.port
+    o.http.listen o.site.express.port
     logger.log "now listening on #{o.site.express.port}"
     return resolve()
 
@@ -125,7 +113,8 @@ processServices = (o) ->
       p = require(servfile)
     else
       p = o.site.api
-    return p(o.expressApp, o.site).then (services) ->
+    return p(o).then (services) ->
+      logger.log "services", services
       o.site.express.modules = services.modules
 
       if services.routes?
@@ -136,13 +125,12 @@ processServices = (o) ->
               apiModNames = apiModNames.concat services.global
 
             apiModNames = apiModNames.concat apiModules
-            logger.log "api modules found", apiModNames, services.global
             apiMods = [apiPath]
             for am in apiModNames
               if o.site.express.modules[am]?
                 apiMods.push o.site.express.modules[am]
 
-            logger.log "creating api route #{apiName} - #{apiPath}", apiMods
+            logger.log "creating api route #{apiName} - #{apiPath}", apiMods.length
             o.expressApp[apiName].apply o.expressApp, apiMods
       return resolve o
 
@@ -157,7 +145,8 @@ module.exports = (site) ->
     site.express = {}
 
   expressApp = express()
-  return processServices({site, expressApp})
+  http = require('http').Server(expressApp);
+  return processServices({site, expressApp, http})
     .then processAppRoutes
     .then createRenderer
     .then setupStatic
@@ -165,110 +154,3 @@ module.exports = (site) ->
     .then listen
     .then () ->
       logger.log "finished"
-
-
-
-
-
-
-
-#
-#
-# module.exports = (site) ->
-#
-#   site.cwd = process.cwd()
-#   site.services
-#   logger.info "site file loaded", site
-#
-#   if !site.express
-#     site.express = {}
-#
-#   expressApp = express()
-
-  # require(path.resolve(site.cwd, site.api))(expressApp, site).then (services) ->
-  #   site.express.modules = services.modules
-  #   logger.info "express modules loaded", services
-  #
-  #   if services.routes?
-  #     logger.info "routes found"
-  #     for apiName, apiObject of services.routes
-  #       logger.info "apiName: #{apiName}", apiObject
-  #       for apiPath, apiModules of apiObject
-  #         apiModNames = []
-  #         if services.global?
-  #           apiModNames = apiModNames.concat services.global
-  #
-  #         apiModNames = apiModNames.concat apiModules
-  #         logger.log "api modules found", apiModNames, services.global
-  #         apiMods = [apiPath]
-  #         for am in apiModNames
-  #           if site.express.modules[am]?
-  #             apiMods.push site.express.modules[am]
-  #
-  #         logger.log "creating api route #{apiName} - #{apiPath}", apiMods
-  #         expressApp[apiName].apply expressApp, apiMods
-  #
-  #   site.components = {}
-  #
-  #   for appName, app of site.apps
-  #     for key, value of app.routes
-  #       for r in value.components
-  #         if !site.components[r]
-  #           site.components[r] = require path.join(site.cwd, r)
-  #
-  #   logger.log "creating renderer from route factory"
-  #   renderer = routerFactory(site)
-
-    # startup = () ->
-    #   return new Promise (resolve, reject) ->
-    #     if site.static?
-    #       staticPath = path.resolve(site.cwd, site.static)
-    #       logger.info "creating static handler at '#{staticPath}"
-    #       expressApp.use express.static(staticPath)
-    #
-    #     gen = (_site, _appName, _app) ->
-    #       return new Promise (resolve, reject) ->
-    #         return temp.mkdir _appName, (err, dirPath) ->
-    #           return bros(_site, _appName, _app, dirPath).then (tmpDir) ->
-    #             logger.log "creating path to '#{tmpDir}"
-    #             expressApp.use express.static(tmpDir)
-    #             modules = []
-    #             if site.modules?
-    #               modules = modules.concat site.modules
-    #             if app.modules?
-    #               modules = modules.concat app.modules
-    #             appModules = []
-    #             logger.debug "modules for route #{appName}", modules
-    #             for m in modules
-    #               if site.express.modules[m]?
-    #                 appModules.push site.express.modules[m]()
-    #             renderer.createApplication(appName, app).then (newApp) ->
-    #               {routes, routeFunc} = newApp
-    #
-    #               for r in routes
-    #                 expressArgs = ["/#{r}"]
-    #                 if app.routes[r]?.modules?
-    #                   for mm in app.routes[r].modules
-    #                     logger.log "adding module to reacta route #{r} #{mm}"
-    #                     expressArgs.push site.express.modules[mm]()
-    #
-    #                 expressArgs = expressArgs.concat appModules
-    #                 expressArgs.push routeFunc
-    #
-    #                 logger.debug "args for app #{appName}", expressArgs, r
-    #                 expressApp.get.apply expressApp, expressArgs
-    #                 resolve()
-    #
-    #     promises = []
-    #     for appName, app of site.apps
-    #
-    #         p =
-    #           promises.push p
-    #
-    #     Promise.all(promises).then resolve, reject
-    #
-    # startup().then () ->
-    #   expressApp.use (req, res, next) ->
-    #     res.status(404).send("404")
-    #   expressApp.listen site.express.port
-    #   logger.log "now listening on #{site.express.port}"
