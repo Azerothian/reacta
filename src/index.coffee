@@ -47,11 +47,11 @@ createApp =  (site, appName, app, renderer) ->
             appModules.push o.site.express.modules[m]
         return renderer.createApplication(appName, app).then (newApp) ->
           {routes, routeFunc} = newApp
-
-          for r in routes
+          for r, obj of routes
+            logger.log "processing route #{r}", app
             expressArgs = ["/#{r}"]
-            if app.routes[r]?.modules?
-              for mm in app.routes[r].modules
+            if obj.modules?
+              for mm in obj.modules
                 logger.log "adding module to reacta route #{r} #{mm}"
                 expressArgs.push site.express.modules[mm]
             expressArgs = expressArgs.concat appModules

@@ -81,7 +81,7 @@
             var gapp, ref, routeName, routeObject, routePath;
             gapp = {
               routeFunc: createExpressRoute(appName, app, renderer),
-              routes: []
+              routes: {}
             };
             ref = app.routes;
             for (routeName in ref) {
@@ -91,7 +91,7 @@
                 routePath = routeObject.path;
               }
               logger.info("creating route '" + routePath + "'");
-              gapp.routes.push(routePath);
+              gapp.routes[routePath] = routeObject;
             }
             return resolve(gapp);
           });

@@ -60,13 +60,13 @@ module.exports = (site) ->
         createRenderer(appName, app).then (renderer) ->
           gapp = {
             routeFunc: createExpressRoute(appName, app, renderer)
-            routes: []
+            routes: {}
           }
           for routeName, routeObject of app.routes
             routePath = "#{app.path}"
             routePath = routeObject.path if routeObject.path?
             logger.info "creating route '#{routePath}'"
-            gapp.routes.push routePath
+            gapp.routes[routePath] = routeObject
 
-          resolve gapp
+          return resolve gapp
   }

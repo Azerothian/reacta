@@ -66,15 +66,16 @@
             }
           }
           return renderer.createApplication(appName, app).then(function(newApp) {
-            var expressArgs, j, k, len1, len2, mm, r, ref, ref1, routeFunc, routes;
+            var expressArgs, j, len1, mm, obj, r, ref, routeFunc, routes;
             routes = newApp.routes, routeFunc = newApp.routeFunc;
-            for (j = 0, len1 = routes.length; j < len1; j++) {
-              r = routes[j];
+            for (r in routes) {
+              obj = routes[r];
+              logger.log("processing route " + r, app);
               expressArgs = ["/" + r];
-              if (((ref = app.routes[r]) != null ? ref.modules : void 0) != null) {
-                ref1 = app.routes[r].modules;
-                for (k = 0, len2 = ref1.length; k < len2; k++) {
-                  mm = ref1[k];
+              if (obj.modules != null) {
+                ref = obj.modules;
+                for (j = 0, len1 = ref.length; j < len1; j++) {
+                  mm = ref[j];
                   logger.log("adding module to reacta route " + r + " " + mm);
                   expressArgs.push(site.express.modules[mm]);
                 }
