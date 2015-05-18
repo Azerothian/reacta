@@ -1,6 +1,6 @@
 {
   "name": "reacta",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "description": "",
   "main": "build/index",
   "scripts": {
@@ -25,10 +25,12 @@
     "coffee-reactify": "^3.0.0",
     "cson": "^1.6.2",
     "debug": "^2.1.1",
+    "deepmerge": "^0.2.7",
     "ect": "^0.5.9",
     "express": "^4.11.1",
+    "fs-extra": "^0.18.3",
     "glob": "^4.5.3",
-    "react": "^0.13.2",
+    "react": "^0.13.3",
     "react-router": "^0.13.2",
     "temp": "^0.8.1",
     "uglifyify": "^3.0.1"

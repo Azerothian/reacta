@@ -35,11 +35,17 @@
         });
       });
     };
-    createRenderer = function(appName, app) {
+    createRenderer = function(site, appName, app) {
       return new Promise(function(resolve, reject) {
         return loadLayout(appName, app).then(function(layoutMarkup) {
-          var markup;
+          var markup, min;
+          min = "";
+          if (site.env !== "development") {
+            min = ".min";
+          }
           markup = "<% extend \"layout\" %>";
+          markup += "<script src='/react/react" + min + ".js'></script>";
+          markup += "<script src='/react-router/ReactRouter" + min + ".js'></script>";
           markup += "<div id='react-component'><%- @reactContent %></div>\r\n";
           markup += "<script src='/" + appName + "-bundle.js'></script>\r\n";
           markup += "<script src='/" + appName + "-start.js'></script>\r\n";
@@ -75,9 +81,9 @@
       };
     };
     return {
-      createApplication: function(appName, app) {
+      createApplication: function(site, appName, app) {
         return new Promise(function(resolve, reject) {
-          return createRenderer(appName, app).then(function(renderer) {
+          return createRenderer(site, appName, app).then(function(renderer) {
             var gapp, ref, routeName, routeObject, routePath;
             gapp = {
               routeFunc: createExpressRoute(appName, app, renderer),

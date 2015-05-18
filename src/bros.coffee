@@ -7,6 +7,8 @@ path = require "path"
 
 bgshim = require 'browserify-global-shim'
 
+merge = require "deepmerge"
+
 pushArray = (arr, item)->
   if arr.indexOf(item) == -1
     arr.push item
@@ -26,7 +28,7 @@ module.exports = (site, appName, appObject, dirPath) ->
     }
     b = browserify(opts)
 
-    globalShim = bgshim.configure site.browserify.globalshim
+    globalShim = bgshim.configure merge({"react": "React", "react-router": "ReactRouter"}, site.browserify.globalshim)
 
     b.transform coffeeReact, { global: true }
 

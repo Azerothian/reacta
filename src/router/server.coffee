@@ -22,10 +22,16 @@ module.exports = (site) ->
           return reject(err)
         resolve(data)
 
-  createRenderer = (appName, app) ->
+  createRenderer = (site, appName, app) ->
     return new Promise (resolve, reject) ->
-      loadLayout(appName, app).then (layoutMarkup) ->
+      return loadLayout(appName, app).then (layoutMarkup) ->
+        min = ""
+        if site.env != "development"
+          min = ".min"
+
         markup = "<% extend \"layout\" %>"
+        markup += "<script src='/react/react#{min}.js'></script>"
+        markup += "<script src='/react-router/ReactRouter#{min}.js'></script>"
         markup += "<div id='react-component'><%- @reactContent %></div>\r\n"
         markup += "<script src='/#{appName}-bundle.js'></script>\r\n"
         markup += "<script src='/#{appName}-start.js'></script>\r\n"
@@ -37,7 +43,7 @@ module.exports = (site) ->
 
   createExpressRoute = (appName, app, renderer) ->
     return (req, res, next) ->
-      clientSite(appName, app).then (element) ->
+      return clientSite(appName, app).then (element) ->
         logger.log "url2", req.url
         Router.run element,  req.url, (Handler) ->
           logger.log "renderToString", req.url
@@ -55,9 +61,9 @@ module.exports = (site) ->
 
 
   return  {
-    createApplication: (appName, app) ->
+    createApplication: (site, appName, app) ->
       return new Promise (resolve, reject) ->
-        createRenderer(appName, app).then (renderer) ->
+        return createRenderer(site, appName, app).then (renderer) ->
           gapp = {
             routeFunc: createExpressRoute(appName, app, renderer)
             routes: {}

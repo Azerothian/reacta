@@ -1,5 +1,5 @@
 (function() {
-  var Promise, bgshim, browserify, coffeeReact, fs, logger, path, pushArray;
+  var Promise, bgshim, browserify, coffeeReact, fs, logger, merge, path, pushArray;
 
   browserify = require("browserify");
 
@@ -14,6 +14,8 @@
   path = require("path");
 
   bgshim = require('browserify-global-shim');
+
+  merge = require("deepmerge");
 
   pushArray = function(arr, item) {
     if (arr.indexOf(item) === -1) {
@@ -40,7 +42,10 @@
         extensions: site.browserify.extensions
       };
       b = browserify(opts);
-      globalShim = bgshim.configure(site.browserify.globalshim);
+      globalShim = bgshim.configure(merge({
+        "react": "React",
+        "react-router": "ReactRouter"
+      }, site.browserify.globalshim));
       b.transform(coffeeReact, {
         global: true
       });
