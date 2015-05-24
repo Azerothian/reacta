@@ -5,7 +5,7 @@ React = require "react"
 
 Router = require("react-router")
 
-Promise = require "bluebird"
+Promise = require "native-or-bluebird"
 
 {div} = React.DOM
 {Route, DefaultRoute, RouteHandler} = Router

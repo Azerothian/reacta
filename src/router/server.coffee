@@ -4,7 +4,7 @@ React = require "react"
 Router = require "react-router"
 ect = require "ect"
 logger = require("../util/logger")("reacta:router:server:")
-Promise = require "bluebird"
+Promise = require "native-or-bluebird"
 fs = require "fs"
 module.exports = (site) ->
 
@@ -25,13 +25,8 @@ module.exports = (site) ->
   createRenderer = (site, appName, app) ->
     return new Promise (resolve, reject) ->
       return loadLayout(appName, app).then (layoutMarkup) ->
-        min = ""
-        if site.env != "development"
-          min = ".min"
-
         markup = "<% extend \"layout\" %>"
-        markup += "<script src='/react/react#{min}.js'></script>"
-        markup += "<script src='/react-router/ReactRouter#{min}.js'></script>"
+        markup += "<script src='/rr-bundle.js'></script>"
         markup += "<div id='react-component'><%- @reactContent %></div>\r\n"
         markup += "<script src='/#{appName}-bundle.js'></script>\r\n"
         markup += "<script src='/#{appName}-start.js'></script>\r\n"

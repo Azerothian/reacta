@@ -9,7 +9,7 @@
 
   Router = require("react-router");
 
-  Promise = require("bluebird");
+  Promise = require("native-or-bluebird");
 
   div = React.DOM.div;
 

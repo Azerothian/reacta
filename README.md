@@ -93,6 +93,10 @@ reacta = require("reacta")({
 ```
 
 ## Changelog
+0.0.9
+- fixed issue where if services were not defined the message object was not passed through
+- create rr-bundle, this compiles react and react router into a single package, also it exposes react/lib internals for packages such as react-three, react-canvas and etc
+- shifted to using native-or-bluebird for promise creation.
 0.0.8
 - modules now has deps option in service definitions for resolution of dependencies
 - updated readme with example

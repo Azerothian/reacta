@@ -1,9 +1,7 @@
 (function() {
-  var Promise, React, bros, copyReactToTemp, createApp, createRenderer, debug, express, fs, generateApps, listen, logger, merge, path, processAppRoutes, processServices, resolveModules, routerFactory, setupStatic, temp;
+  var Promise, bros, createApp, createRenderer, debug, express, fs, generateApps, listen, logger, merge, path, processAppRoutes, processServices, resolveModules, routerFactory, setupStatic, temp;
 
   express = require("express");
-
-  React = require("react");
 
   path = require("path");
 
@@ -11,7 +9,7 @@
 
   merge = require("deepmerge");
 
-  Promise = require("bluebird");
+  Promise = require("native-or-bluebird");
 
   require('coffee-react/register');
 
@@ -65,31 +63,6 @@
     return modules;
   };
 
-  copyReactToTemp = function(tmpDir) {
-    return new Promise(function(resolve, reject) {
-      var reactDistPath, reactPath, reactRouterDistPath, reactRouterPath, reactRouterTargetPath, reactTargetPath;
-      reactPath = path.dirname(require.resolve("react"));
-      reactRouterPath = path.dirname(require.resolve("react-router"));
-      reactDistPath = path.resolve(reactPath, "./dist/");
-      reactRouterDistPath = path.resolve(reactRouterPath, "../umd/");
-      reactTargetPath = path.resolve(tmpDir, "./react/");
-      reactRouterTargetPath = path.resolve(tmpDir, "./react-router/");
-      logger.log("starting copy", reactDistPath, reactTargetPath);
-      return fs.copy(reactDistPath, reactTargetPath, function(err) {
-        if (err != null) {
-          return reject(err);
-        }
-        logger.log("starting copy 2", reactRouterDistPath, reactRouterTargetPath);
-        return fs.copy(reactRouterDistPath, reactRouterTargetPath, function(err) {
-          if (err != null) {
-            return reject(err);
-          }
-          return resolve();
-        });
-      });
-    });
-  };
-
   createApp = function(site, appName, app, renderer) {
     logger.log("createApp " + appName);
     return new Promise(function(resolve, reject) {
@@ -100,53 +73,49 @@
       };
       return temp.mkdir(appName, function(err, dirPath) {
         return bros(site, appName, app, dirPath).then(function(tmpDir) {
-          logger.log("creating path to '" + tmpDir);
-          return copyReactToTemp(tmpDir).then(function() {
-            var appModules, j, len, m, modules;
-            logger.log("creating path to '" + tmpDir);
-            o["static"] = tmpDir;
-            modules = [];
-            if (site.modules != null) {
-              modules = modules.concat(site.modules);
-            }
-            if (app.modules != null) {
-              modules = modules.concat(app.modules);
-            }
-            appModules = [];
-            logger.debug("modules for route " + appName, modules);
-            for (j = 0, len = modules.length; j < len; j++) {
-              m = modules[j];
-              appModules = resolveModules(m, site._services, appModules);
-            }
-            return renderer.createApplication(site, appName, app).then(function(newApp) {
-              var expressArgs, l, len1, len2, moduleName, n, obj, r, ref, routeFunc, routeModules, routes;
-              routes = newApp.routes, routeFunc = newApp.routeFunc;
-              for (r in routes) {
-                obj = routes[r];
-                logger.log("processing route " + r, app);
-                expressArgs = ["/" + r];
-                routeModules = appModules.concat([]);
-                if (obj.modules != null) {
-                  ref = obj.modules;
-                  for (l = 0, len1 = ref.length; l < len1; l++) {
-                    m = ref[l];
-                    logger.log("mods", m);
-                    routeModules = resolveModules(m, site._services, routeModules);
-                  }
+          var appModules, j, len, m, modules;
+          o["static"] = tmpDir;
+          modules = [];
+          if (site.modules != null) {
+            modules = modules.concat(site.modules);
+          }
+          if (app.modules != null) {
+            modules = modules.concat(app.modules);
+          }
+          appModules = [];
+          logger.debug("modules for route " + appName, modules);
+          for (j = 0, len = modules.length; j < len; j++) {
+            m = modules[j];
+            appModules = resolveModules(m, site._services, appModules);
+          }
+          return renderer.createApplication(site, appName, app).then(function(newApp) {
+            var expressArgs, l, len1, len2, moduleName, n, obj, r, ref, routeFunc, routeModules, routes;
+            routes = newApp.routes, routeFunc = newApp.routeFunc;
+            for (r in routes) {
+              obj = routes[r];
+              logger.log("processing route " + r, app);
+              expressArgs = ["/" + r];
+              routeModules = appModules.concat([]);
+              if (obj.modules != null) {
+                ref = obj.modules;
+                for (l = 0, len1 = ref.length; l < len1; l++) {
+                  m = ref[l];
+                  logger.log("mods", m);
+                  routeModules = resolveModules(m, site._services, routeModules);
                 }
-                logger.log("route modules", routeModules);
-                for (n = 0, len2 = routeModules.length; n < len2; n++) {
-                  moduleName = routeModules[n];
-                  if (site._services.modules[moduleName] != null) {
-                    expressArgs.push(site._services.modules[moduleName]);
-                  }
-                }
-                expressArgs.push(routeFunc);
-                logger.debug("args for app " + appName, expressArgs, r);
-                o.routes.push(expressArgs);
               }
-              return resolve(o);
-            });
+              logger.log("route modules", routeModules);
+              for (n = 0, len2 = routeModules.length; n < len2; n++) {
+                moduleName = routeModules[n];
+                if (site._services.modules[moduleName] != null) {
+                  expressArgs.push(site._services.modules[moduleName]);
+                }
+              }
+              expressArgs.push(routeFunc);
+              logger.debug("args for app " + appName, expressArgs, r);
+              o.routes.push(expressArgs);
+            }
+            return resolve(o);
           });
         });
       });
@@ -232,7 +201,7 @@
     return new Promise(function(resolve, reject) {
       var p, servfile;
       if (o.site.api == null) {
-        return resolve();
+        return resolve(o);
       }
       if (typeof o.site.api === "string") {
         servfile = path.resolve(o.site.cwd, o.site.api);

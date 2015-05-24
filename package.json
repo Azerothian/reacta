@@ -1,6 +1,6 @@
 {
   "name": "reacta",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "",
   "main": "build/index",
   "scripts": {
@@ -16,6 +16,10 @@
     "url": "https://github.com/Azerothian/reacta/issues"
   },
   "homepage": "https://github.com/Azerothian/reacta",
+  "peerDependencies": {
+    "react": "^0.13.3",
+    "react-router": "^0.13.2"
+  },
   "dependencies": {
     "bluebird": "^2.9.4",
     "body-parser": "^1.11.0",
@@ -30,8 +34,7 @@
     "express": "^4.11.1",
     "fs-extra": "^0.18.3",
     "glob": "^4.5.3",
-    "react": "^0.13.3",
-    "react-router": "^0.13.2",
+    "native-or-bluebird": "^1.2.0",
     "temp": "^0.8.1",
     "uglifyify": "^3.0.1"
   },

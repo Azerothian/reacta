@@ -1,18 +1,17 @@
 
 express = require "express"
-React = require "react"
 path = require "path"
 debug = require "debug"
 merge = require "deepmerge"
-Promise = require "bluebird"
+Promise = require "native-or-bluebird"
 
 require 'coffee-react/register' # add cjsx require
 require './util/cson-register'
-
 fs = require "fs-extra"
 
 temp = require "temp"
 temp.track()
+
 
 routerFactory = require "./router/server"
 bros = require "./bros"
@@ -38,32 +37,6 @@ resolveModules = (moduleName, service, modules = []) ->
     modules.push moduleName
   return modules;
 
-copyReactToTemp = (tmpDir) ->
-  return new Promise (resolve, reject) ->
-
-    reactPath = path.dirname(require.resolve("react"))
-    reactRouterPath = path.dirname(require.resolve("react-router"))
-
-    reactDistPath = path.resolve(reactPath, "./dist/")
-    reactRouterDistPath = path.resolve(reactRouterPath, "../umd/")
-
-    reactTargetPath = path.resolve tmpDir, "./react/"
-    reactRouterTargetPath = path.resolve tmpDir, "./react-router/"
-
-    logger.log "starting copy", reactDistPath, reactTargetPath
-
-    return fs.copy reactDistPath, reactTargetPath, (err) ->
-      if err?
-        return reject(err)
-
-      logger.log "starting copy 2", reactRouterDistPath, reactRouterTargetPath
-      return fs.copy reactRouterDistPath, reactRouterTargetPath, (err) ->
-        if err?
-          return reject(err)
-        return resolve()
-
-
-
 createApp =  (site, appName, app, renderer) ->
   logger.log "createApp #{appName}"
   return new Promise (resolve, reject) ->
@@ -73,38 +46,35 @@ createApp =  (site, appName, app, renderer) ->
     }
     return temp.mkdir appName, (err, dirPath) ->
       return bros(site, appName, app, dirPath).then (tmpDir) ->
-        logger.log "creating path to '#{tmpDir}"
-        return copyReactToTemp(tmpDir).then () ->
-          logger.log "creating path to '#{tmpDir}"
-          o.static = tmpDir
-          modules = []
-          if site.modules?
-            modules = modules.concat site.modules
-          if app.modules?
-            modules = modules.concat app.modules
-          appModules = []
-          logger.debug "modules for route #{appName}", modules
-          for m in modules
-            appModules = resolveModules(m, site._services, appModules)
-          return renderer.createApplication(site, appName, app).then (newApp) ->
-            {routes, routeFunc} = newApp
-            for r, obj of routes
-              logger.log "processing route #{r}", app
-              expressArgs = ["/#{r}"]
-              routeModules = appModules.concat([])
-              if obj.modules?
-                for m in obj.modules
-                  logger.log "mods", m
-                  routeModules = resolveModules(m, site._services, routeModules)
+        o.static = tmpDir
+        modules = []
+        if site.modules?
+          modules = modules.concat site.modules
+        if app.modules?
+          modules = modules.concat app.modules
+        appModules = []
+        logger.debug "modules for route #{appName}", modules
+        for m in modules
+          appModules = resolveModules(m, site._services, appModules)
+        return renderer.createApplication(site, appName, app).then (newApp) ->
+          {routes, routeFunc} = newApp
+          for r, obj of routes
+            logger.log "processing route #{r}", app
+            expressArgs = ["/#{r}"]
+            routeModules = appModules.concat([])
+            if obj.modules?
+              for m in obj.modules
+                logger.log "mods", m
+                routeModules = resolveModules(m, site._services, routeModules)
 
-              logger.log "route modules", routeModules
-              for moduleName in routeModules
-                if site._services.modules[moduleName]?
-                  expressArgs.push site._services.modules[moduleName]
-              expressArgs.push routeFunc
-              logger.debug "args for app #{appName}", expressArgs, r
-              o.routes.push expressArgs
-            return resolve(o)
+            logger.log "route modules", routeModules
+            for moduleName in routeModules
+              if site._services.modules[moduleName]?
+                expressArgs.push site._services.modules[moduleName]
+            expressArgs.push routeFunc
+            logger.debug "args for app #{appName}", expressArgs, r
+            o.routes.push expressArgs
+          return resolve(o)
 
 generateApps = (o) ->
   logger.log "generate apps"
@@ -152,15 +122,11 @@ processAppRoutes = (o) ->
 
 
 
-
-
-
-
 processServices = (o) ->
   logger.log "processServices"
   return new Promise (resolve, reject) ->
     if !o.site.api?
-      return resolve() #service reference not found, act normal, should i reject?
+      return resolve(o) #service reference not found, act normal, should i reject?
 
     if typeof o.site.api is "string"
       servfile = path.resolve o.site.cwd, o.site.api
