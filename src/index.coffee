@@ -1,198 +1,132 @@
-
-express = require "express"
-path = require "path"
-debug = require "debug"
-merge = require "deepmerge"
 Promise = require "native-or-bluebird"
-
-require 'coffee-react/register' # add cjsx require
-require './util/cson-register'
-fs = require "fs-extra"
-
 temp = require "temp"
+React = require "react"
+webpack = require "webpack"
+path = require("path").posix
+fs = require 'fs-extra'
+glob = require "glob"
+_ = require "lodash"
+
+CommonsChunkPlugin = require "webpack/lib/optimize/CommonsChunkPlugin"
+
 temp.track()
 
-
-routerFactory = require "./router/server"
-bros = require "./bros"
-logger = require("./util/logger")("reacta:");
-
-listen = (o) ->
-  logger.log "listen"
-  return new Promise (resolve, reject) ->
-    o.expressApp.use (req, res, next) ->
-      res.status(404).send("404")
-    o.http.listen o.site.express.port
-    logger.log "now listening on #{o.site.express.port}"
-    return resolve()
+class ReactaRenderer
+  constructor: (@name, @options, @reacta) ->
+    @fileName = @name.replace /\//g, '-'
+    @sourceFile = "../#{@reacta.options.components}/#{@name}"
+    if !@options.dependencies?
+      @options.dependencies = []
+    @options.dependencies.push "react"
+    @options.dependencies.push @sourceFile
 
 
-resolveModules = (moduleName, service, modules = []) ->
-  if service.deps[moduleName]?
-    for k in service.deps[moduleName]
-      for i in resolveModules(k, service, modules)
-        if modules.indexOf(i) is -1
-          modules.push i
-  if modules.indexOf(moduleName) is -1
-    modules.push moduleName
-  return modules;
-
-createApp =  (site, appName, app, renderer) ->
-  logger.log "createApp #{appName}"
-  return new Promise (resolve, reject) ->
-    o = {
-      static: undefined
-      routes: []
-    }
-    return temp.mkdir appName, (err, dirPath) ->
-      return bros(site, appName, app, dirPath).then (tmpDir) ->
-        o.static = tmpDir
-        modules = []
-        if site.modules?
-          modules = modules.concat site.modules
-        if app.modules?
-          modules = modules.concat app.modules
-        appModules = []
-        logger.debug "modules for route #{appName}", modules
-        for m in modules
-          appModules = resolveModules(m, site._services, appModules)
-        return renderer.createApplication(site, appName, app).then (newApp) ->
-          {routes, routeFunc} = newApp
-          for r, obj of routes
-            logger.log "processing route #{r}", app
-            expressArgs = ["/#{r}"]
-            routeModules = appModules.concat([])
-            if obj.modules?
-              for m in obj.modules
-                logger.log "mods", m
-                routeModules = resolveModules(m, site._services, routeModules)
-
-            logger.log "route modules", routeModules
-            for moduleName in routeModules
-              if site._services.modules[moduleName]?
-                expressArgs.push site._services.modules[moduleName]
-            expressArgs.push routeFunc
-            logger.debug "args for app #{appName}", expressArgs, r
-            o.routes.push expressArgs
-          return resolve(o)
-
-generateApps = (o) ->
-  logger.log "generate apps"
-  return new Promise (resolve, reject) ->
-    promises = []
-    for appName, app of o.site.apps
-      promises.push createApp(o.site, appName, app, o.renderer)
-
-    Promise.all(promises).then (apps) ->
-      for a in apps
-        o.expressApp.use express.static(a.static)
-        for args in a.routes
-          o.expressApp.get.apply o.expressApp, args
-      return resolve(o)
-
-setupStatic = (o) ->
-  logger.log "setupStatic"
-  return new Promise (resolve, reject) ->
-    if o.site.static?
-      staticPath = path.resolve(o.site.cwd, o.site.static)
-      logger.info "creating static handler at '#{staticPath}"
-      o.expressApp.use express.static(staticPath)
-    return resolve o
-
-createRenderer = (o) ->
-  logger.log "createRender"
-  return new Promise (resolve, reject) ->
-    logger.log "creating renderer from route factory"
-    o.renderer = routerFactory(o.site)
-    return resolve o
-
-
-processAppRoutes = (o) ->
-  logger.log "processAppRoutes"
-  return new Promise (resolve, reject) ->
-    o.site.components = {}
-    for appName, app of o.site.apps
-      if !app.disableServerRenderer
-        for key, value of app.routes
-          for r in value.components
-            if !o.site.components[r]
-              o.site.components[r] = require path.join(o.site.cwd, r)
-    return resolve o
-
-
-
-
-processServices = (o) ->
-  logger.log "processServices"
-  return new Promise (resolve, reject) ->
-    if !o.site.api?
-      return resolve(o) #service reference not found, act normal, should i reject?
-
-    if typeof o.site.api is "string"
-      servfile = path.resolve o.site.cwd, o.site.api
-      p = require(servfile)
-    else
-      p = o.site.api
-    return p(o).then (res) ->
-      return Promise.all(res).then (results) ->
-        logger.log "results", results
-        services = {}
-        if results instanceof Array
-          for r in results
-            services = merge r, services
+  createStartupFile: () ->
+    return new Promise (resolve, reject) =>
+      deps = []
+      for d in @options.dependencies
+        if d.indexOf(".") > -1
+          deps.push "../" + path.resolve "../#{@reacta.options.components}", d
         else
-          servicea = results
+          deps.push d
 
-        if services.routes?
-          for apiName, apiObject of services.routes
-            for apiPath, apiModules of apiObject
+      script = ""
+      jsonDeps = JSON.stringify deps
+      jsonProps = JSON.stringify @options.props
+      script += "require.ensure(#{jsonDeps}, function(err){ \r\n"
+      script += "if(err){ console.log('require.ensure error')}\r\n"
+      script += "var React = require('react');\r\n"
+      script += "var component = require('#{@sourceFile}')\r\n"
+      script += "React.render(React.createElement(component, #{jsonProps}), document.getElementById('react-component'));\r\n"
+      script += "});\r\n"
 
-              mods = []
+      return fs.writeFile path.join(@reacta.startPath, @fileName) + "-startup.js", script, resolve
 
-              if services.global?
-                mods = services.global.concat apiModules
-              else
-                mods = apiModules.concat []
-              for m in mods
-                mods = resolveModules(m, services, mods)
-
-
-              apiModNames = []
-              if services.global?
-                for m in services.global
-                  apiModNames = resolveModules(m, services, apiModNames)
-              for m in apiModules
-                apiModNames = resolveModules(m, services, apiModNames)
-
-              apiMods = [apiPath]
-              for am in apiModNames
-                if services.modules[am]?
-                  apiMods.push services.modules[am]
-
-              logger.log "creating api route #{apiName} - #{apiPath}", apiMods.length
-
-              o.expressApp[apiName].apply o.expressApp, apiMods
-
-        o.site._services = services
-        return resolve o
+  use: () ->
+    return (req, res, next) =>
+      options = {
+        header: ""
+        content: "<div id='react-component'></div>"
+        scripts: ""
+      }
+      options.scripts += "<script src='#{@reacta.options.static}/commons.js'></script>"
+      options.scripts += "<script src='#{@reacta.options.static}/#{@fileName}-startup.bundle.js'></script>"
+      if @options.template?
+        options = _.merge(options, @options.templateProps)
+      res.render "#{@options.view}", options
 
 
 
-module.exports = (site) ->
+class Reacta
+  constructor: (@options) ->
+    @cwd = @options.cwd || process.cwd()
+    @tempPath = "./temp/"#temp.mkdirSync "reacta"
+    @startPath = "./temp/"
+    @renderers = {}
 
-  site.cwd = process.cwd()
-  logger.info "site file loaded", site.cwd
+  static: (express, app) ->
+    app.use @options.static, express.static(@tempPath)
 
-  if !site.express
-    site.express = {}
+  create: (componentName, options) ->
+    if !@renderers[componentName]?
+      renderer = new ReactaRenderer(componentName, options, @)
+      @renderers[componentName] = renderer
+    else
+      renderer = @renderers[componentName]
+    return renderer.use()
 
-  expressApp = express()
-  http = require('http').Server(expressApp);
-  return processServices({site, expressApp, http})
-    .then processAppRoutes
-    .then createRenderer
-    .then setupStatic
-    .then generateApps
-    .then listen
-    .then () ->
-      logger.log "finished"
+
+
+  compile: () ->
+    return new Promise (resolve, reject) =>
+
+      entries = {}
+      promises = []
+      for k,v of @renderers
+        promises.push v.createStartupFile()
+        entries["#{v.fileName}-startup"] = "./" + path.join @startPath, "#{v.fileName}-startup"
+      Promise.all(promises).then () =>
+        webpackOptions = _.merge {
+          context: @cwd
+          entry: entries
+          output:
+            publicPath: @options.static + "/"
+            path: @tempPath
+            filename: "[name].bundle.js"
+            chunkFilename: "[id].chunk.js"
+          plugins:
+            [
+              new CommonsChunkPlugin({
+                name: "commons",
+                minChunks: Infinity
+              })
+              new webpack.optimize.DedupePlugin()
+            ]
+        }, (@options.webpack || {})
+        @compiler = webpack webpackOptions
+        @compiler.run (err, stats) =>
+          if err?
+            console.log "err", err
+            return reject(err)
+
+          console.log stats.toString({
+            colors: true
+            hash: true
+            version: true
+            timings: true
+            assets: true
+            chunks: false
+            chunkModules: false
+            modules: false
+            cached: false
+            reasons: false
+            source: false
+            errorDetails: true
+            chunkOrigins: false
+          })
+          return resolve(stats)
+
+
+
+module.exports = (options) ->
+  return new Reacta options

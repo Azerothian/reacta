@@ -18,25 +18,17 @@
   "homepage": "https://github.com/Azerothian/reacta",
   "peerDependencies": {
     "react": "^0.13.3",
-    "react-router": "^0.13.2"
+    "react-router": "^0.13.3",
+    "native-or-bluebird": "^1.2.0"
   },
   "dependencies": {
-    "bluebird": "^2.9.4",
-    "body-parser": "^1.11.0",
-    "browserify": "^6.3.4",
-    "browserify-global-shim": "^1.0.0",
-    "coffee-react": "^3.0.1",
-    "coffee-reactify": "^3.0.0",
-    "cson": "^1.6.2",
-    "debug": "^2.1.1",
-    "deepmerge": "^0.2.7",
-    "ect": "^0.5.9",
-    "express": "^4.11.1",
-    "fs-extra": "^0.18.3",
-    "glob": "^4.5.3",
-    "native-or-bluebird": "^1.2.0",
-    "temp": "^0.8.1",
-    "uglifyify": "^3.0.1"
+    "bluebird": "^2.9.34",
+    "debug": "^2.2.0",
+    "fs-extra": "^0.22.1",
+    "glob": "^5.0.14",
+    "lodash": "^3.10.1",
+    "temp": "^0.8.3",
+    "webpack": "^1.10.5"
   },
   "devDependencies": {
     "grunt": "^0.4.5",
