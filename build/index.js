@@ -38,13 +38,15 @@
     ReactaRenderer.prototype.createStartupFile = function() {
       return new Promise((function(_this) {
         return function(resolve, reject) {
-          var d, deps, i, jsonDeps, jsonProps, len, ref, script;
+          var d, deps, i, jsonDeps, jsonProps, len, ref, resolved, script;
           deps = [];
           ref = _this.options.dependencies;
           for (i = 0, len = ref.length; i < len; i++) {
             d = ref[i];
             if (d.indexOf(".") > -1) {
-              deps.push("../" + path.resolve("../" + _this.reacta.options.components, d));
+              resolved = path.join("../" + _this.reacta.options.components, d);
+              console.log("relative", _this.reacta.options.components, d, resolved);
+              deps.push(resolved);
             } else {
               deps.push(d);
             }
@@ -52,8 +54,7 @@
           script = "";
           jsonDeps = JSON.stringify(deps);
           jsonProps = JSON.stringify(_this.options.props);
-          script += "require.ensure(" + jsonDeps + ", function(err){ \r\n";
-          script += "if(err){ console.log('require.ensure error')}\r\n";
+          script += "require.ensure(" + jsonDeps + ", function(require){ \r\n";
           script += "var React = require('react');\r\n";
           script += "var component = require('" + _this.sourceFile + "')\r\n";
           script += "React.render(React.createElement(component, " + jsonProps + "), document.getElementById('react-component'));\r\n";
@@ -122,6 +123,8 @@
             promises.push(v.createStartupFile());
             entries[v.fileName + "-startup"] = "./" + path.join(_this.startPath, v.fileName + "-startup");
           }
+          entries["vender"] = ["react"];
+          console.log("entries", entries);
           return Promise.all(promises).then(function() {
             var webpackOptions;
             webpackOptions = _.merge({

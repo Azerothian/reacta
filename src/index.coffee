@@ -26,15 +26,17 @@ class ReactaRenderer
       deps = []
       for d in @options.dependencies
         if d.indexOf(".") > -1
-          deps.push "../" + path.resolve "../#{@reacta.options.components}", d
+          resolved = path.join "../#{@reacta.options.components}", d
+          console.log "relative", @reacta.options.components, d, resolved
+          deps.push resolved
         else
           deps.push d
 
       script = ""
       jsonDeps = JSON.stringify deps
       jsonProps = JSON.stringify @options.props
-      script += "require.ensure(#{jsonDeps}, function(err){ \r\n"
-      script += "if(err){ console.log('require.ensure error')}\r\n"
+      script += "require.ensure(#{jsonDeps}, function(require){ \r\n"
+      # script += "if(err){ console.log('require.ensure error')}\r\n"
       script += "var React = require('react');\r\n"
       script += "var component = require('#{@sourceFile}')\r\n"
       script += "React.render(React.createElement(component, #{jsonProps}), document.getElementById('react-component'));\r\n"
@@ -85,7 +87,9 @@ class Reacta
       for k,v of @renderers
         promises.push v.createStartupFile()
         entries["#{v.fileName}-startup"] = "./" + path.join @startPath, "#{v.fileName}-startup"
-      Promise.all(promises).then () =>
+      entries["vender"] = ["react"]
+      console.log "entries", entries
+      return Promise.all(promises).then () =>
         webpackOptions = _.merge {
           context: @cwd
           entry: entries
