@@ -1,9 +1,7 @@
 (function() {
-  var CommonsChunkPlugin, Promise, React, Reacta, ReactaRenderer, _, fs, glob, path, temp, webpack;
+  var Promise, React, Reacta, ReactaRenderer, _, fs, glob, path, webpack;
 
   Promise = require("native-or-bluebird");
-
-  temp = require("temp");
 
   React = require("react");
 
@@ -16,10 +14,6 @@
   glob = require("glob");
 
   _ = require("lodash");
-
-  CommonsChunkPlugin = require("webpack/lib/optimize/CommonsChunkPlugin");
-
-  temp.track();
 
   ReactaRenderer = (function() {
     function ReactaRenderer(name, options1, reacta) {
@@ -45,7 +39,6 @@
             d = ref[i];
             if (d.indexOf(".") > -1) {
               resolved = path.join("../" + _this.reacta.options.components, d);
-              console.log("relative", _this.reacta.options.components, d, resolved);
               deps.push(resolved);
             } else {
               deps.push(d);
@@ -91,8 +84,8 @@
     function Reacta(options1) {
       this.options = options1;
       this.cwd = this.options.cwd || process.cwd();
-      this.tempPath = "./temp/";
-      this.startPath = "./temp/";
+      this.tempPath = "./.reacta/";
+      this.startPath = "./.reacta/";
       this.renderers = {};
     }
 
@@ -111,60 +104,77 @@
       return renderer.use();
     };
 
+    Reacta.prototype.createDirectory = function(path) {
+      return new Promise(function(resolve, reject) {
+        return fs.exists(path, function(exists) {
+          if (exists) {
+            fs.rmdir(path, (function(_this) {
+              return function() {
+                return fs.mkdir(path, resolve);
+              };
+            })(this));
+          }
+          return fs.mkdir(path, resolve);
+        });
+      });
+    };
+
     Reacta.prototype.compile = function() {
       return new Promise((function(_this) {
         return function(resolve, reject) {
-          var entries, k, promises, ref, v;
-          entries = {};
-          promises = [];
-          ref = _this.renderers;
-          for (k in ref) {
-            v = ref[k];
-            promises.push(v.createStartupFile());
-            entries[v.fileName + "-startup"] = "./" + path.join(_this.startPath, v.fileName + "-startup");
-          }
-          entries["vender"] = ["react"];
-          console.log("entries", entries);
-          return Promise.all(promises).then(function() {
-            var webpackOptions;
-            webpackOptions = _.merge({
-              context: _this.cwd,
-              entry: entries,
-              output: {
-                publicPath: _this.options["static"] + "/",
-                path: _this.tempPath,
-                filename: "[name].bundle.js",
-                chunkFilename: "[id].chunk.js"
-              },
-              plugins: [
-                new CommonsChunkPlugin({
-                  name: "commons",
-                  minChunks: Infinity
-                }), new webpack.optimize.DedupePlugin()
-              ]
-            }, _this.options.webpack || {});
-            _this.compiler = webpack(webpackOptions);
-            return _this.compiler.run(function(err, stats) {
-              if (err != null) {
-                console.log("err", err);
-                return reject(err);
-              }
-              console.log(stats.toString({
-                colors: true,
-                hash: true,
-                version: true,
-                timings: true,
-                assets: true,
-                chunks: false,
-                chunkModules: false,
-                modules: false,
-                cached: false,
-                reasons: false,
-                source: false,
-                errorDetails: true,
-                chunkOrigins: false
-              }));
-              return resolve(stats);
+          return _this.createDirectory(_this.tempPath).then(function() {
+            var entries, fileName, k, plugins, promises, ref, v;
+            entries = {};
+            promises = [];
+            plugins = [
+              new webpack.optimize.CommonsChunkPlugin({
+                name: "commons",
+                minChunks: Infinity
+              }), new webpack.optimize.DedupePlugin()
+            ];
+            ref = _this.renderers;
+            for (k in ref) {
+              v = ref[k];
+              promises.push(v.createStartupFile());
+              fileName = v.fileName + "-startup";
+              entries[fileName] = "./" + path.join(_this.startPath, fileName);
+            }
+            return Promise.all(promises).then(function() {
+              var webpackOptions;
+              webpackOptions = _.merge({
+                context: _this.cwd,
+                entry: entries,
+                output: {
+                  publicPath: _this.options["static"] + "/",
+                  path: _this.tempPath,
+                  filename: "[name].bundle.js",
+                  chunkFilename: "[id].chunk.js"
+                },
+                plugins: plugins
+              }, _this.options.webpack || {});
+              _this.compiler = webpack(webpackOptions);
+              return _this.compiler.run(function(err, stats) {
+                if (err != null) {
+                  console.log("err", err);
+                  return reject(err);
+                }
+                console.log(stats.toString({
+                  colors: true,
+                  hash: true,
+                  version: true,
+                  timings: true,
+                  assets: true,
+                  chunks: false,
+                  chunkModules: false,
+                  modules: false,
+                  cached: false,
+                  reasons: false,
+                  source: false,
+                  errorDetails: true,
+                  chunkOrigins: false
+                }));
+                return resolve(stats);
+              });
             });
           });
         };

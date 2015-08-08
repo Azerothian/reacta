@@ -1,5 +1,4 @@
 Promise = require "native-or-bluebird"
-temp = require "temp"
 React = require "react"
 webpack = require "webpack"
 path = require("path").posix
@@ -7,9 +6,6 @@ fs = require 'fs-extra'
 glob = require "glob"
 _ = require "lodash"
 
-CommonsChunkPlugin = require "webpack/lib/optimize/CommonsChunkPlugin"
-
-temp.track()
 
 class ReactaRenderer
   constructor: (@name, @options, @reacta) ->
@@ -27,7 +23,6 @@ class ReactaRenderer
       for d in @options.dependencies
         if d.indexOf(".") > -1
           resolved = path.join "../#{@reacta.options.components}", d
-          console.log "relative", @reacta.options.components, d, resolved
           deps.push resolved
         else
           deps.push d
@@ -36,7 +31,6 @@ class ReactaRenderer
       jsonDeps = JSON.stringify deps
       jsonProps = JSON.stringify @options.props
       script += "require.ensure(#{jsonDeps}, function(require){ \r\n"
-      # script += "if(err){ console.log('require.ensure error')}\r\n"
       script += "var React = require('react');\r\n"
       script += "var component = require('#{@sourceFile}')\r\n"
       script += "React.render(React.createElement(component, #{jsonProps}), document.getElementById('react-component'));\r\n"
@@ -62,8 +56,8 @@ class ReactaRenderer
 class Reacta
   constructor: (@options) ->
     @cwd = @options.cwd || process.cwd()
-    @tempPath = "./temp/"#temp.mkdirSync "reacta"
-    @startPath = "./temp/"
+    @tempPath = "./.reacta/"#temp.mkdirSync "reacta"
+    @startPath = "./.reacta/"
     @renderers = {}
 
   static: (express, app) ->
@@ -78,57 +72,64 @@ class Reacta
     return renderer.use()
 
 
+  createDirectory: (path) ->
+    return new Promise (resolve, reject) ->
+      return fs.exists path, (exists) ->
+        if exists
+          fs.rmdir path, () =>
+            return fs.mkdir path, resolve
+        return fs.mkdir path, resolve
 
   compile: () ->
     return new Promise (resolve, reject) =>
+      return @createDirectory(@tempPath).then () =>
+        entries = {}
+        promises = []
+        plugins = [
+          new webpack.optimize.CommonsChunkPlugin {
+            name: "commons",
+            minChunks: Infinity
+          }
+          new webpack.optimize.DedupePlugin()
+        ]
+        for k,v of @renderers
+          promises.push v.createStartupFile()
+          fileName = "#{v.fileName}-startup"
+          entries[fileName] = "./" + path.join @startPath, fileName
 
-      entries = {}
-      promises = []
-      for k,v of @renderers
-        promises.push v.createStartupFile()
-        entries["#{v.fileName}-startup"] = "./" + path.join @startPath, "#{v.fileName}-startup"
-      entries["vender"] = ["react"]
-      console.log "entries", entries
-      return Promise.all(promises).then () =>
-        webpackOptions = _.merge {
-          context: @cwd
-          entry: entries
-          output:
-            publicPath: @options.static + "/"
-            path: @tempPath
-            filename: "[name].bundle.js"
-            chunkFilename: "[id].chunk.js"
-          plugins:
-            [
-              new CommonsChunkPlugin({
-                name: "commons",
-                minChunks: Infinity
-              })
-              new webpack.optimize.DedupePlugin()
-            ]
-        }, (@options.webpack || {})
-        @compiler = webpack webpackOptions
-        @compiler.run (err, stats) =>
-          if err?
-            console.log "err", err
-            return reject(err)
+        return Promise.all(promises).then () =>
+          webpackOptions = _.merge {
+            context: @cwd
+            entry: entries
+            output:
+              publicPath: @options.static + "/"
+              path: @tempPath
+              filename: "[name].bundle.js"
+              chunkFilename: "[id].chunk.js"
+            plugins: plugins
+          }, (@options.webpack || {})
+          @compiler = webpack webpackOptions
+          @compiler.run (err, stats) =>
+            if err?
+              console.log "err", err
+              return reject(err)
 
-          console.log stats.toString({
-            colors: true
-            hash: true
-            version: true
-            timings: true
-            assets: true
-            chunks: false
-            chunkModules: false
-            modules: false
-            cached: false
-            reasons: false
-            source: false
-            errorDetails: true
-            chunkOrigins: false
-          })
-          return resolve(stats)
+            console.log stats.toString({
+              colors: true
+              hash: true
+              version: true
+              timings: true
+              assets: true
+              chunks: false
+              chunkModules: false
+              modules: false
+              cached: false
+              reasons: false
+              source: false
+              errorDetails: true
+              chunkOrigins: false
+            })
+            return resolve(stats)
 
 
 

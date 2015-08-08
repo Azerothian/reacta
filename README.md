@@ -1,13 +1,13 @@
 # Reacta
 
-A platform using node.js for rendering and serving react components using express, reactjs and react-router
+A middleware component for express for rendering react components
 
 ## Example
 
 
 Files:
 - public/
-- layouts/main.ect
+- views/main.ect
 ```
 <html>
   <head>
@@ -15,13 +15,13 @@ Files:
     <%- @header %>
   </head>
   <body>
-    <% content %>
+    <%- @content %>
     <%- @scripts %>
   </body>
 </html>
 ```
 
-- react/home.cjsx
+- components/home.cjsx
 ```
 React = require "react"
 module.exports = React.createClass {
@@ -32,74 +32,53 @@ module.exports = React.createClass {
 
 - index.coffee
 ```
-log = require("debug")("react-test:")
+express = require 'express'
+reacta = require "reacta"
+app = express()
 
-ReactaServiceExpress = require("reacta-service-express")({
-  session:
-    secret: "2#1"
-  })
+ECT = require('ect')
+ectRenderer = ECT({ watch: true, root: __dirname + '/views', ext : '.ect' })
+app.set('view engine', 'ect')
+app.engine('ect', ectRenderer.render)
 
 
-reacta = require("reacta")({
+
+rc = reacta {
+  static: "/libs"
   env: "development"
-  threads: 1
-  minify: false
-  express:
-    port: process.env.PORT || 6655
-  name: 'site'
-  'static': './public'
-  layouts:
-    'main': './layouts/main'
-  browserify:
-    extensions: [".js", ".coffee", ".json", ".cjsx", ".cson"]
-    globalshim: {}
+  components: "components"
+  webpack:
+    resolve:
+      extensions: ['', '.js', '.cjsx', '.coffee']
+    module:
+      loaders: [
+        { test: /\.cjsx$/, loaders: ['coffee', 'cjsx'] },
+        { test: /\.coffee$/, loader: 'coffee' }
+      ]
+}
 
-  api: [
-    ReactaServiceExpress,
-    {
-      deps:
-        '/hit': ['/deps']
-      routes:
-        get:
-          '/api/hit': ['/hit']
-        post:
-          '/api/hit': ['/hit']
+app.use express.static(__dirname + '/public')
+rc.static(express, app);
 
-      modules:
-        "/hit": (req, res, next) ->
-          console.log "test"
-          res.send "Hello"
-        "/deps": (req, res, next) ->
-          console.log "depstest"
-          next()
-    }
-  ]
+app.get '/', rc.create "home", {
+  view: "main"
+  props: {}
+  templateProps: {}
+  dependencies: ["./next"]
+}
 
-  apps:
-    'index':
-      disableServerRenderer: true
-      path: '/'
-      layout: 'main'
-      modules: []
-      baseRoute: 'home'
-      routes:
-        'home':
-          components: ['./react/home']
-        'test':
-          modules: ['/deps']
-          path: 'test'
-          components: ['./react/home']
-})
+
+
+rc.compile().then () ->
+  console.log "listening on 3030"
+  app.listen(3030)
+
 ```
 
 ## Changelog
-0.0.9
-- fixed issue where if services were not defined the message object was not passed through
-- create rr-bundle, this compiles react and react router into a single package, also it exposes react/lib internals for packages such as react-three, react-canvas and etc
-- shifted to using native-or-bluebird for promise creation.
-0.0.8
-- modules now has deps option in service definitions for resolution of dependencies
-- updated readme with example
-- added changelog to readme ^^
-- added react and react router to the temp directory and added them to globalshim, this is so you don't need install react or react-router in your project
-- fixed bug where if path didn't match route name it would not load the modules
+0.0.10
+- Re-written to just be a piece of middleware for express using webpack.
+- React Router has been moved and will be reimplemented in separate package reacta-router
+- same with the express api deps tree code
+0.0.10 <
+- removed as has no reference any more
