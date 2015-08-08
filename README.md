@@ -76,9 +76,9 @@ rc.compile().then () ->
 ```
 
 ## Changelog
-0.0.10
+0.0.11
 - Re-written to just be a piece of middleware for express using webpack.
 - React Router has been moved and will be reimplemented in separate package reacta-router
 - same with the express api deps tree code
-0.0.10 <
+0.0.11 <
 - removed as has no reference any more
